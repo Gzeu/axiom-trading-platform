@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none" aria-label="AXIOM Trading Platform">
+  <!-- Signal waveform mark -->
+  <polyline points="4,24 12,24 16,10 20,38 24,16 28,32 32,24 40,24" stroke="#4f98a3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Vertical axis line -->
+  <line x1="4" y1="8" x2="4" y2="40" stroke="#4f98a3" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+  <!-- Horizontal baseline -->
+  <line x1="4" y1="24" x2="40" y2="24" stroke="#4f98a3" stroke-width="1" opacity="0.2"/>
+  <!-- AXIOM wordmark -->
+  <text x="50" y="32" font-family="'Satoshi', 'Inter', sans-serif" font-weight="700" font-size="22" letter-spacing="0.05em" fill="currentColor">AXIOM</text>
+  <!-- Subtitle -->
+  <text x="51" y="44" font-family="'Satoshi', 'Inter', sans-serif" font-weight="400" font-size="8" letter-spacing="0.15em" fill="currentColor" opacity="0.45">TRADING PLATFORM</text>
+</svg>
