@@ -3,7 +3,11 @@
  *
  * Pure in-memory state with typed mutation functions.
  * No external state library — avoids runtime overhead.
- * All mutations return the updated state slice, never mutate in place silently.
+ * All mutations return void and operate on appState directly;
+ * callers re-render after each mutation.
+ *
+ * KPI snapshot (including equityCurve) is advanced each tick via
+ * tickKPISnapshot imported from kpi-engine.ts.
  */
 
 import type {
@@ -25,14 +29,16 @@ import type {
   ViewName,
 } from '../types/trading.js';
 
+import { tickKPISnapshot, createInitialKPISnapshot, incrementSignalCount } from './kpi-engine.js';
+
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 export const INSTRUMENT_CONFIGS: Readonly<Record<InstrumentSymbol, InstrumentConfig>> = {
-  BTCUSD: { symbol: 'BTCUSD', price: 67420, vol: 1.4, mu: 0.0001,  sigma: 0.018, decimals: 0 },
-  ETHUSD: { symbol: 'ETHUSD', price: 3540,  vol: 1.2, mu: 0.0001,  sigma: 0.022, decimals: 1 },
-  EURUSD: { symbol: 'EURUSD', price: 1.0852,vol: 0.6, mu: 0.00003, sigma: 0.004, decimals: 4 },
-  XAUUSD: { symbol: 'XAUUSD', price: 2318,  vol: 0.8, mu: 0.00005, sigma: 0.008, decimals: 1 },
-  NVDA:   { symbol: 'NVDA',   price: 876,   vol: 1.1, mu: 0.0002,  sigma: 0.025, decimals: 2 },
+  BTCUSD: { symbol: 'BTCUSD', price: 67420,  vol: 1.4, mu: 0.0001,  sigma: 0.018, decimals: 0 },
+  ETHUSD: { symbol: 'ETHUSD', price: 3540,   vol: 1.2, mu: 0.0001,  sigma: 0.022, decimals: 1 },
+  EURUSD: { symbol: 'EURUSD', price: 1.0852, vol: 0.6, mu: 0.00003, sigma: 0.004, decimals: 4 },
+  XAUUSD: { symbol: 'XAUUSD', price: 2318,   vol: 0.8, mu: 0.00005, sigma: 0.008, decimals: 1 },
+  NVDA:   { symbol: 'NVDA',   price: 876,    vol: 1.1, mu: 0.0002,  sigma: 0.025, decimals: 2 },
 } as const;
 
 export const MARKET_REGIMES: readonly MarketRegime[] = [
@@ -46,13 +52,13 @@ export const REGIME_COLORS: Readonly<Record<MarketRegime, string>> = {
   'Consolidating':  '#ffb703',
 } as const;
 
-const MAX_CANDLE_HISTORY = 80;
-const MAX_SIGNAL_HISTORY = 50;
+const MAX_CANDLE_HISTORY  = 80;
+const MAX_SIGNAL_HISTORY  = 50;
 const MAX_ANOMALY_HISTORY = 40;
 const MAX_AUDIT_HISTORY   = 50;
 
 // ─── MUTABLE LIVE PRICES (updated by GBM each tick) ─────────────────────────
-// Kept separate from config so GBM can mutate price without cloning full config.
+// Separated from INSTRUMENT_CONFIGS so GBM can mutate price without cloning.
 
 const livePrices: Record<InstrumentSymbol, number> = {
   BTCUSD: 67420,
@@ -64,7 +70,7 @@ const livePrices: Record<InstrumentSymbol, number> = {
 
 export function getLivePrice(symbol: InstrumentSymbol): number {
   const price = livePrices[symbol];
-  // GBM guarantees price > 0 — this guard is a defensive invariant
+  // Defensive invariant: GBM guarantees price > 0
   return price > 0 ? price : 0.001;
 }
 
@@ -72,34 +78,34 @@ export function getLivePrice(symbol: InstrumentSymbol): number {
 
 /**
  * Advances price by one GBM step.
- * dt = 1 trading day / (252 days * 78 ticks/day) = intraday scale.
+ * dt = 1 / (252 trading days * 78 ticks/day) — intraday scale.
  */
 export function gbmStep(symbol: InstrumentSymbol): number {
-  const config = INSTRUMENT_CONFIGS[symbol];
-  const currentPrice = livePrices[symbol];
-  const dt = 1 / (252 * 78);
-  const drift    = config.mu - 0.5 * config.sigma * config.sigma;
-  const diffusion = config.sigma * (Math.random() * 2 - 1) * Math.sqrt(dt);
-  const nextPrice = currentPrice * Math.exp(drift + diffusion);
-  livePrices[symbol] = Math.max(nextPrice, 0.001);
+  const config     = INSTRUMENT_CONFIGS[symbol];
+  const current    = livePrices[symbol];
+  const dt         = 1 / (252 * 78);
+  const drift      = config.mu - 0.5 * config.sigma * config.sigma;
+  const diffusion  = config.sigma * (Math.random() * 2 - 1) * Math.sqrt(dt);
+  const next       = current * Math.exp(drift + diffusion);
+  livePrices[symbol] = Math.max(next, 0.001);
   return livePrices[symbol];
 }
 
 /**
- * Generates one OHLCV candle for the given instrument using current live price.
+ * Generates one OHLCV candle using the current live price.
  */
 export function generateCandle(symbol: InstrumentSymbol): OHLCVCandle {
   const openPrice  = livePrices[symbol];
   const closePrice = gbmStep(symbol);
-  const high = Math.max(openPrice, closePrice) * (1 + Math.random() * 0.003);
-  const low  = Math.min(openPrice, closePrice) * (1 - Math.random() * 0.003);
-  const volume = 1_000 + Math.random() * 9_000;
+  const high       = Math.max(openPrice, closePrice) * (1 + Math.random() * 0.003);
+  const low        = Math.min(openPrice, closePrice) * (1 - Math.random() * 0.003);
+  const volume     = 1_000 + Math.random() * 9_000;
   return Object.freeze({
-    o: openPrice,
-    h: high,
-    l: low,
-    c: closePrice,
-    v: volume,
+    o:         openPrice,
+    h:         high,
+    l:         low,
+    c:         closePrice,
+    v:         volume,
     timestamp: Date.now(),
   });
 }
@@ -107,17 +113,17 @@ export function generateCandle(symbol: InstrumentSymbol): OHLCVCandle {
 // ─── AUDIT HASH CHAIN ────────────────────────────────────────────────────────
 
 /**
- * Deterministic-ish mock hash. Not cryptographically secure — simulation only.
- * Uses FNV-1a variant with BigInt for wider hash space.
+ * Deterministic-ish FNV-1a mock hash.
+ * Not cryptographically secure — simulation only.
  */
 function computeEntryHash(payload: string): string {
   let hash = 0x811c9dc5n;
-  for (let charIdx = 0; charIdx < payload.length; charIdx++) {
-    hash ^= BigInt(payload.charCodeAt(charIdx));
-    hash = (hash * 0x01000193n) & 0xFF_FF_FF_FF_FF_FF_FF_FFn;
+  for (let i = 0; i < payload.length; i++) {
+    hash ^= BigInt(payload.charCodeAt(i));
+    hash  = (hash * 0x01000193n) & 0xFF_FF_FF_FF_FF_FF_FF_FFn;
   }
   const deterministicPart = hash.toString(16).padStart(16, '0');
-  const noisePart = Math.random().toString(16).slice(2, 18).padEnd(16, '0');
+  const noisePart          = Math.random().toString(16).slice(2, 18).padEnd(16, '0');
   return deterministicPart + noisePart;
 }
 
@@ -164,30 +170,17 @@ function buildInitialCandles(): Record<InstrumentSymbol, OHLCVCandle[]> {
 }
 
 function buildInitialRegime(): RegimeState {
-  return {
-    current: 'Trending',
-    confidence: 0.82,
-    ticksInRegime: 0,
-    transitionProbabilities: {
-      'Trending': 0.75,
+  return Object.freeze({
+    current:                 'Trending' as const,
+    confidence:              0.82,
+    ticksInRegime:           0,
+    transitionProbabilities: Object.freeze({
+      'Trending':       0.75,
       'Mean-Reverting': 0.12,
-      'Volatile': 0.08,
-      'Consolidating': 0.05,
-    },
-  };
-}
-
-function buildInitialKPI(): KPISnapshot {
-  return {
-    totalPnL: 0,
-    pnLPercent: 0,
-    winRate: 58.4,
-    sharpeRatio: 1.82,
-    maxDrawdown: -4.2,
-    openPositions: 3,
-    unrealisedPnL: 0,
-    signalsToday: 0,
-  };
+      'Volatile':       0.08,
+      'Consolidating':  0.05,
+    }),
+  });
 }
 
 function buildInitialStrategyParams(): StrategyParameters {
@@ -203,51 +196,11 @@ function buildInitialStrategyParams(): StrategyParameters {
 
 function buildInitialBridgeEndpoints(): APIBridgeEndpoint[] {
   return [
-    {
-      name: 'Market Data Feed',
-      url: 'wss://feed.axiom-sim.internal/v2/market',
-      status: 'connected',
-      latencyMs: 12,
-      lastHeartbeat: Date.now(),
-      errorCount: 0,
-      maxLatencyThresholdMs: 50,
-    },
-    {
-      name: 'Execution Engine',
-      url: 'wss://exec.axiom-sim.internal/v1/orders',
-      status: 'connected',
-      latencyMs: 8,
-      lastHeartbeat: Date.now(),
-      errorCount: 0,
-      maxLatencyThresholdMs: 25,
-    },
-    {
-      name: 'ML Inference API',
-      url: 'https://ml.axiom-sim.internal/v1/predict',
-      status: 'connected',
-      latencyMs: 34,
-      lastHeartbeat: Date.now(),
-      errorCount: 0,
-      maxLatencyThresholdMs: 100,
-    },
-    {
-      name: 'Audit Chain Node',
-      url: 'https://audit.axiom-sim.internal/v1/chain',
-      status: 'connected',
-      latencyMs: 22,
-      lastHeartbeat: Date.now(),
-      errorCount: 0,
-      maxLatencyThresholdMs: 150,
-    },
-    {
-      name: 'Risk Engine',
-      url: 'wss://risk.axiom-sim.internal/v1/monitor',
-      status: 'connected',
-      latencyMs: 6,
-      lastHeartbeat: Date.now(),
-      errorCount: 0,
-      maxLatencyThresholdMs: 20,
-    },
+    { name: 'Market Data Feed', url: 'wss://feed.axiom-sim.internal/v2/market',   status: 'connected', latencyMs: 12, lastHeartbeat: Date.now(), errorCount: 0, maxLatencyThresholdMs: 50  },
+    { name: 'Execution Engine', url: 'wss://exec.axiom-sim.internal/v1/orders',   status: 'connected', latencyMs: 8,  lastHeartbeat: Date.now(), errorCount: 0, maxLatencyThresholdMs: 25  },
+    { name: 'ML Inference API', url: 'https://ml.axiom-sim.internal/v1/predict',  status: 'connected', latencyMs: 34, lastHeartbeat: Date.now(), errorCount: 0, maxLatencyThresholdMs: 100 },
+    { name: 'Audit Chain Node', url: 'https://audit.axiom-sim.internal/v1/chain', status: 'connected', latencyMs: 22, lastHeartbeat: Date.now(), errorCount: 0, maxLatencyThresholdMs: 150 },
+    { name: 'Risk Engine',      url: 'wss://risk.axiom-sim.internal/v1/monitor',  status: 'connected', latencyMs: 6,  lastHeartbeat: Date.now(), errorCount: 0, maxLatencyThresholdMs: 20  },
   ];
 }
 
@@ -269,7 +222,7 @@ export const appState: ApplicationState = {
   signals:          [],
   anomalies:        [],
   auditLog:         [],
-  kpi:              buildInitialKPI(),
+  kpi:              createInitialKPISnapshot(),   // ← wired to kpi-engine
   regime:           buildInitialRegime(),
   orderBook:        null,
   strategyParams:   buildInitialStrategyParams(),
@@ -285,48 +238,46 @@ export const appState: ApplicationState = {
 };
 
 // ─── STATE MUTATION FUNCTIONS ─────────────────────────────────────────────────
-// All return void — mutations are explicit side effects on appState.
-// Callers re-render after calling these.
 
 export function pushCandle(symbol: InstrumentSymbol): void {
-  const candle = generateCandle(symbol);
+  const candle     = generateCandle(symbol);
   const candleList = appState.candles[symbol];
   candleList.push(candle);
-  if (candleList.length > MAX_CANDLE_HISTORY) {
-    candleList.shift();
-  }
+  if (candleList.length > MAX_CANDLE_HISTORY) candleList.shift();
 }
 
 export function pushSignal(signal: TradeSignal): void {
   appState.signals.unshift(signal);
-  if (appState.signals.length > MAX_SIGNAL_HISTORY) {
-    appState.signals.pop();
-  }
-  appState.kpi = {
-    ...appState.kpi,
-    signalsToday: appState.kpi.signalsToday + 1,
-  };
+  if (appState.signals.length > MAX_SIGNAL_HISTORY) appState.signals.pop();
+
+  // Increment signal counter via kpi-engine (keeps count in KPISnapshot)
+  appState.kpi = incrementSignalCount(appState.kpi);
   appState.ui.signalBadgeCount = Math.min(appState.ui.signalBadgeCount + 1, 99);
 
-  // Every signal produces a blockchain audit entry
-  const prevHash = appState.auditLog[0]?.txHash ?? '0000000000000000000000000000000000000000';
+  // Append blockchain audit entry
+  const prevHash = appState.auditLog[0]?.txHash
+    ?? '0000000000000000000000000000000000000000';
   const entry = buildAuditEntry(signal, prevHash, appState.auditLog.length);
   appState.auditLog.unshift(entry);
-  if (appState.auditLog.length > MAX_AUDIT_HISTORY) {
-    appState.auditLog.pop();
-  }
+  if (appState.auditLog.length > MAX_AUDIT_HISTORY) appState.auditLog.pop();
 }
 
 export function pushAnomaly(anomaly: MarketAnomaly): void {
   appState.anomalies.unshift(anomaly);
-  if (appState.anomalies.length > MAX_ANOMALY_HISTORY) {
-    appState.anomalies.pop();
-  }
+  if (appState.anomalies.length > MAX_ANOMALY_HISTORY) appState.anomalies.pop();
   appState.ui.anomalyBadgeCount = Math.min(appState.ui.anomalyBadgeCount + 1, 99);
 }
 
+/**
+ * Advances the KPI snapshot by one tick using kpi-engine.tickKPISnapshot.
+ * Called by ticker-engine on every market tick.
+ */
+export function tickKPI(): void {
+  appState.kpi = tickKPISnapshot(appState.kpi);
+}
+
 export function updateKPI(delta: Partial<KPISnapshot>): void {
-  appState.kpi = { ...appState.kpi, ...delta };
+  appState.kpi = Object.freeze({ ...appState.kpi, ...delta });
 }
 
 export function updateRegime(regime: RegimeState): void {
@@ -335,7 +286,7 @@ export function updateRegime(regime: RegimeState): void {
 
 export function setActiveView(view: ViewName): void {
   appState.activeView = view;
-  if (view === 'signals')  appState.ui.signalBadgeCount  = 0;
+  if (view === 'signals')   appState.ui.signalBadgeCount  = 0;
   if (view === 'anomalies') appState.ui.anomalyBadgeCount = 0;
 }
 
@@ -354,13 +305,17 @@ export function updateBridgeEndpoint(
   name: string,
   patch: Partial<Pick<APIBridgeEndpoint, 'status' | 'latencyMs' | 'lastHeartbeat' | 'errorCount'>>,
 ): void {
-  const endpointIdx = appState.bridge.endpoints.findIndex(ep => ep.name === name);
-  if (endpointIdx === -1) return; // endpoint not found — defensive guard
-  const existing = appState.bridge.endpoints[endpointIdx];
+  const idx = appState.bridge.endpoints.findIndex(ep => ep.name === name);
+  if (idx === -1) return;
+  const existing = appState.bridge.endpoints[idx];
   if (existing === undefined) return;
-  appState.bridge.endpoints[endpointIdx] = { ...existing, ...patch };
+  appState.bridge.endpoints[idx] = { ...existing, ...patch };
 }
 
 export function updateBridgeMetrics(patch: Partial<BridgeMetrics>): void {
   appState.bridge.metrics = { ...appState.bridge.metrics, ...patch };
+}
+
+export function updateOrderBook(snapshot: OrderBookSnapshot): void {
+  appState.orderBook = snapshot;
 }

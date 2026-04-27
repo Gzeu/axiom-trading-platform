@@ -151,17 +151,22 @@ export interface KPISnapshot {
   readonly openPositions: number;
   readonly unrealisedPnL: number;
   readonly signalsToday: number;
+  /**
+   * Rolling equity curve — last 80 data points.
+   * Stored here so all consumers read from one place.
+   */
+  readonly equityCurve: readonly number[];
 }
 
 // ─── STRATEGY PARAMETERS ─────────────────────────────────────────────────────
 
 export interface StrategyParameters {
-  rsiOverbought: number;   // 60–90
-  rsiOversold: number;     // 10–40
-  atrMultiplier: number;   // 1.0–4.0
-  vwapDeviationBand: number; // 0.5–4.0 %
+  rsiOverbought: number;          // 60–90
+  rsiOversold: number;            // 10–40
+  atrMultiplier: number;          // 1.0–4.0
+  vwapDeviationBand: number;      // 0.5–4.0 %
   signalConfidenceFilter: number; // 50–95 %
-  maxPositionSizePct: number; // 1–20 % of equity
+  maxPositionSizePct: number;     // 1–20 % of equity
 }
 
 // ─── LIQUIDITY DEPTH ─────────────────────────────────────────────────────────
@@ -174,6 +179,7 @@ export interface DepthLevel {
 }
 
 export interface OrderBookSnapshot {
+  /** Which instrument this book belongs to */
   readonly instrument: InstrumentSymbol;
   readonly timestamp: number;
   readonly midPrice: number;
@@ -224,6 +230,7 @@ export interface ApplicationState {
   signals: TradeSignal[];
   anomalies: MarketAnomaly[];
   auditLog: AuditEntry[];
+  /** KPI snapshot — includes equityCurve as single source of truth */
   kpi: KPISnapshot;
   regime: RegimeState;
   orderBook: OrderBookSnapshot | null;
