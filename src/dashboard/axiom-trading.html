@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AXIOM — Algorithmic Trading Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://api.fontshare.com" />
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&display=swap" rel="stylesheet" />
+<style>
+/* ── DESIGN TOKENS ───────────────────────────────────────────── */
+:root {
+  --bg-base:     #080d14;
+  --bg-surface:  #0e1621;
+  --bg-elevated: #162030;
+  --bg-card:     #1a2640;
+  --border:      #1f3050;
+  --border-soft: #162030;
+  --teal:        #06d6a0;
+  --teal-dim:    #04a87e;
+  --teal-glow:   rgba(6,214,160,.15);
+  --amber:       #ffb703;
+  --amber-dim:   #cc9200;
+  --red:         #ef4444;
+  --red-dim:     #b91c1c;
+  --green:       #22c55e;
+  --purple:      #a78bfa;
+  --text-primary:   #e2eaf4;
+  --text-secondary: #7a95b8;
+  --text-muted:     #3d5a80;
+  --font-sans: 'Satoshi', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --transition: 160ms cubic-bezier(.4,0,.2,1);
+  --sidebar-w: 220px;
+  --header-h: 56px;
+}
+
+/* ── RESET ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+ul { list-style: none; }
+
+/* ── APP LAYOUT ──────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar main";
+  height: 100vh;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+#sidebar {
+  grid-area: sidebar;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  height: var(--header-h);
+}
+.sidebar-logo svg { flex-shrink: 0; }
+.logo-text { font-weight: 700; font-size: 16px; letter-spacing: .04em; color: var(--teal); }
+.logo-sub  { font-size: 10px; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; }
+.nav-section { padding: 12px 12px 4px; }
+.nav-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); padding: 0 6px 6px; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.nav-item.active { background: var(--teal-glow); color: var(--teal); }
+.nav-item .icon { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  min-width: 18px;
+  text-align: center;
+}
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+.regime-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+.regime-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 8px var(--teal);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+.regime-label { font-size: 11px; color: var(--text-muted); }
+.regime-value { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+
+/* ── HEADER ──────────────────────────────────────────────────── */
+#header {
+  grid-area: header;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+}
+.header-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.header-spacer { flex: 1; }
+.header-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--green);
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.5s infinite;
+}
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.btn-icon:hover { background: var(--bg-card); color: var(--text-primary); }
+
+/* ── MAIN ────────────────────────────────────────────────────── */
+#main {
+  grid-area: main;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── KPI BAR ─────────────────────────────────────────────────── */
+.kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+.kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: border-color var(--transition);
+}
+.kpi-card:hover { border-color: var(--teal-dim); }
+.kpi-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -.02em;
+}
+.kpi-value.positive { color: var(--green); }
+.kpi-value.negative { color: var(--red); }
+.kpi-value.teal { color: var(--teal); }
+.kpi-delta {
+  font-size: 11px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.kpi-delta.up { color: var(--green); }
+.kpi-delta.down { color: var(--red); }
+
+/* ── VIEWS ───────────────────────────────────────────────────── */
+.view { display: none; flex-direction: column; gap: 20px; }
+.view.active { display: flex; }
+
+/* ── GRID LAYOUTS ────────────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+
+/* ── CARD ────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.card-subtitle { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+.card-body { padding: 16px 18px; }
+.card-body.no-pad { padding: 0; }
+.chart-wrap { position: relative; width: 100%; }
+
+/* ── SIGNAL FEED ─────────────────────────────────────────────── */
+.signal-list { display: flex; flex-direction: column; gap: 0; }
+.signal-item {
+  display: grid;
+  grid-template-columns: 60px 48px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background var(--transition);
+  animation: slideIn .3s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.signal-item:hover { background: var(--bg-elevated); }
+.signal-item:last-child { border-bottom: none; }
+.signal-ticker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.signal-side {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+  letter-spacing: .04em;
+}
+.signal-side.long  { background: rgba(34,197,94,.15); color: var(--green); }
+.signal-side.short { background: rgba(239,68,68,.15);  color: var(--red); }
+.signal-xai { font-size: 11.5px; color: var(--text-secondary); }
+.signal-conf {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ── ANOMALY TABLE ───────────────────────────────────────────── */
+.anomaly-table { width: 100%; border-collapse: collapse; }
+.anomaly-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+.anomaly-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+.anomaly-table tr:hover td { background: var(--bg-elevated); }
+.severity-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.severity-high   { background: rgba(239,68,68,.2);   color: var(--red); }
+.severity-medium { background: rgba(255,183,3,.2);   color: var(--amber); }
+.severity-low    { background: rgba(6,214,160,.15);  color: var(--teal); }
+
+/* ── AUDIT LOG ───────────────────────────────────────────────── */
+.audit-list { display: flex; flex-direction: column; gap: 0; }
+.audit-item {
+  display: grid;
+  grid-template-columns: 140px 60px 52px 1fr 120px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  transition: background var(--transition);
+}
+.audit-item:hover { background: var(--bg-elevated); }
+.audit-hash {
+  color: var(--teal);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-verified {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--green);
+  font-size: 11px;
+  font-family: var(--font-sans);
+}
+
+/* ── STRATEGY LAB ────────────────────────────────────────────── */
+.slider-group { display: flex; flex-direction: column; gap: 16px; padding: 4px 0; }
+.slider-row { display: flex; flex-direction: column; gap: 6px; }
+.slider-header { display: flex; justify-content: space-between; align-items: center; }
+.slider-name { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.slider-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal);
+}
+input[type=range] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--teal);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--teal);
+}
+
+/* ── INSTRUMENT SELECTOR ─────────────────────────────────────── */
+.instrument-tabs {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.inst-tab {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.inst-tab.active { background: var(--teal-glow); border-color: var(--teal); color: var(--teal); }
+.inst-tab:hover:not(.active) { border-color: var(--text-muted); color: var(--text-secondary); }
+
+/* ── LIQUIDITY DEPTH ─────────────────────────────────────────── */
+.depth-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.depth-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .07em; }
+.depth-stat-value { font-family: var(--font-mono); font-size: 15px; font-weight: 700; margin-top: 2px; }
+
+/* ── SCROLLBAR ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── SKELETON LOADER ─────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .kpi-bar { grid-template-columns: repeat(3, 1fr); }
+  .grid-2  { grid-template-columns: 1fr; }
+  .grid-3  { grid-template-columns: 1fr; }
+  .grid-4  { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  #sidebar { display: none; }
+  #app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
+  .kpi-bar { grid-template-columns: repeat(2, 1fr); }
+  .audit-item { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── SIDEBAR ────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="28" height="28" rx="6" fill="#0e1621"/>
+        <polyline points="4,20 8,12 12,16 16,8 20,14 24,10" stroke="#06d6a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="24" cy="10" r="2" fill="#06d6a0"/>
+      </svg>
+      <div>
+        <div class="logo-text">AXIOM</div>
+        <div class="logo-sub">Trading v1.0</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Analytics</div>
+      <div class="nav-item active" data-view="overview" onclick="switchView('overview',this)">
+        <i data-lucide="layout-dashboard" class="icon"></i> Overview
+      </div>
+      <div class="nav-item" data-view="signals" onclick="switchView('signals',this)">
+        <i data-lucide="zap" class="icon"></i> AI Signals
+        <span class="nav-badge" id="signal-badge">0</span>
+      </div>
+      <div class="nav-item" data-view="anomalies" onclick="switchView('anomalies',this)">
+        <i data-lucide="activity" class="icon"></i> Anomalies
+        <span class="nav-badge" id="anomaly-badge" style="background:var(--amber);color:#000">0</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">System</div>
+      <div class="nav-item" data-view="audit" onclick="switchView('audit',this)">
+        <i data-lucide="shield-check" class="icon"></i> Audit Trail
+      </div>
+      <div class="nav-item" data-view="strategy" onclick="switchView('strategy',this)">
+        <i data-lucide="sliders-horizontal" class="icon"></i> Strategy Lab
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="regime-badge">
+        <div class="regime-dot" id="regime-dot"></div>
+        <div>
+          <div class="regime-label">ML Regime</div>
+          <div class="regime-value" id="regime-value">Trending</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header id="header">
+    <div class="header-title" id="header-title">Overview</div>
+    <div class="header-spacer"></div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      Live Feed
+    </div>
+    <div class="header-clock" id="clock">--:--:--</div>
+    <button class="btn-icon" title="Refresh" onclick="forceRefresh()">
+      <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
+    </button>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main id="main">
+
+    <!-- KPI BAR (always visible) -->
+    <div class="kpi-bar">
+      <div class="kpi-card">
+        <div class="kpi-label">Total P&amp;L</div>
+        <div class="kpi-value positive" id="kpi-pnl">+$0.00</div>
+        <div class="kpi-delta up" id="kpi-pnl-delta">▲ 0.00%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Win Rate</div>
+        <div class="kpi-value teal" id="kpi-winrate">0.0%</div>
+        <div class="kpi-delta" id="kpi-winrate-delta" style="color:var(--text-muted)">last 50 trades</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sharpe Ratio</div>
+        <div class="kpi-value teal" id="kpi-sharpe">0.00</div>
+        <div class="kpi-delta" style="color:var(--text-muted)">annualised</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Max Drawdown</div>
+        <div class="kpi-value negative" id="kpi-drawdown">-0.00%</div>
+        <div class="kpi-delta down" id="kpi-dd-delta">rolling 30d</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Open Positions</div>
+        <div class="kpi-value" id="kpi-positions">0</div>
+        <div class="kpi-delta" style="color:var(--text-muted)" id="kpi-pos-pnl">unrealised $0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Signals Today</div>
+        <div class="kpi-value teal" id="kpi-signals">0</div>
+        <div class="kpi-delta" style="color:var(--text-muted)">AI generated</div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: OVERVIEW ─────────────────────────────────── -->
+    <div class="view active" id="view-overview">
+      <div class="grid-3">
+        <!-- Candlestick chart -->
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="candlestick-chart" style="width:15px;height:15px;color:var(--teal)"></i>
+            <span class="card-title">Price Chart</span>
+            <div class="instrument-tabs" id="inst-tabs">
+              <button class="inst-tab active" onclick="selectInstrument('BTCUSD',this)">BTCUSD</button>
+              <button class="inst-tab" onclick="selectInstrument('ETHUSD',this)">ETHUSD</button>
+              <button class="inst-tab" onclick="selectInstrument('EURUSD',this)">EURUSD</button>
+              <button class="inst-tab" onclick="selectInstrument('XAUUSD',this)">XAUUSD</button>
+              <button class="inst-tab" onclick="selectInstrument('NVDA',this)">NVDA</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:260px">
+              <canvas id="chart-candle"></canvas>
+            </div>
+            <div class="chart-wrap" style="height:70px;margin-top:8px">
+              <canvas id="chart-volume"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- Recent signals sidebar -->
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="zap" style="width:15px;height:15px;color:var(--amber)"></i>
+            <span class="card-title">Recent Signals</span>
+            <span class="card-subtitle" id="signal-count-label">0 active</span>
+          </div>
+          <div class="card-body no-pad">
+            <div class="signal-list" id="overview-signal-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <!-- Liquidity depth -->
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="bar-chart-3" style="width:15px;height:15px;color:var(--purple)"></i>
+            <span class="card-title">Liquidity Depth</span>
+            <span class="card-subtitle" id="spread-label">spread: 0.00</span>
+          </div>
+          <div class="card-body">
+            <div class="depth-stats">
+              <div>
+                <div class="depth-stat-label">Bid Volume</div>
+                <div class="depth-stat-value" id="bid-vol" style="color:var(--green)">0</div>
+              </div>
+              <div>
+                <div class="depth-stat-label">Mid Price</div>
+                <div class="depth-stat-value" id="mid-price" style="color:var(--text-primary)">0</div>
+              </div>
+              <div>
+                <div class="depth-stat-label">Ask Volume</div>
+                <div class="depth-stat-value" id="ask-vol" style="color:var(--red)">0</div>
+              </div>
+            </div>
+            <div class="chart-wrap" style="height:180px">
+              <canvas id="chart-depth"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- Anomaly mini -->
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="alert-triangle" style="width:15px;height:15px;color:var(--red)"></i>
+            <span class="card-title">Market Anomalies</span>
+            <span class="card-subtitle" id="anomaly-count-label">0 detected</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:220px">
+              <canvas id="chart-anomaly"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: SIGNALS ──────────────────────────────────── -->
+    <div class="view" id="view-signals">
+      <div class="grid-4">
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="cpu" style="width:15px;height:15px;color:var(--teal)"></i>
+            <span class="card-title">AI Trade Signals — Explainable</span>
+            <span class="card-subtitle" id="signals-full-label">real-time</span>
+          </div>
+          <div class="card-body no-pad">
+            <div class="signal-list" id="full-signal-list"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="pie-chart" style="width:15px;height:15px;color:var(--purple)"></i>
+            <span class="card-title">Signal Distribution</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:220px">
+              <canvas id="chart-signal-dist"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: ANOMALIES ─────────────────────────────────── -->
+    <div class="view" id="view-anomalies">
+      <div class="card">
+        <div class="card-header">
+          <i data-lucide="activity" style="width:15px;height:15px;color:var(--amber)"></i>
+          <span class="card-title">Market Anomaly Detection Log</span>
+          <span class="card-subtitle" id="anomaly-full-label">0 events</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height:200px;margin-bottom:20px">
+            <canvas id="chart-anomaly-timeline"></canvas>
+          </div>
+          <table class="anomaly-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Instrument</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Magnitude</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody id="anomaly-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: AUDIT TRAIL ───────────────────────────────── -->
+    <div class="view" id="view-audit">
+      <div class="card">
+        <div class="card-header">
+          <i data-lucide="shield-check" style="width:15px;height:15px;color:var(--green)"></i>
+          <span class="card-title">Blockchain-Verified Audit Trail</span>
+          <span class="card-subtitle">SHA-256 hash chain</span>
+        </div>
+        <div class="card-body no-pad">
+          <div class="audit-item" style="background:var(--bg-elevated);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 18px;">
+            <span>Timestamp</span>
+            <span>Ticker</span>
+            <span>Side</span>
+            <span>XAI Reason</span>
+            <span>Tx Hash</span>
+            <span>Status</span>
+          </div>
+          <div class="audit-list" id="audit-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: STRATEGY LAB ─────────────────────────────── -->
+    <div class="view" id="view-strategy">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="sliders-horizontal" style="width:15px;height:15px;color:var(--teal)"></i>
+            <span class="card-title">Strategy Parameter Optimizer</span>
+          </div>
+          <div class="card-body">
+            <div class="slider-group">
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">RSI Overbought Threshold</span>
+                  <span class="slider-val" id="val-rsi-ob">70</span>
+                </div>
+                <input type="range" min="60" max="90" value="70" step="1" oninput="updateSlider('rsi-ob',this.value);updateRadar()">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">RSI Oversold Threshold</span>
+                  <span class="slider-val" id="val-rsi-os">30</span>
+                </div>
+                <input type="range" min="10" max="40" value="30" step="1" oninput="updateSlider('rsi-os',this.value);updateRadar()">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">ATR Multiplier (Stop)</span>
+                  <span class="slider-val" id="val-atr">2.0</span>
+                </div>
+                <input type="range" min="1" max="4" value="2" step="0.1" oninput="updateSlider('atr',parseFloat(this.value).toFixed(1));updateRadar()">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">VWAP Deviation Band (%)</span>
+                  <span class="slider-val" id="val-vwap">1.5</span>
+                </div>
+                <input type="range" min="0.5" max="4" value="1.5" step="0.1" oninput="updateSlider('vwap',parseFloat(this.value).toFixed(1));updateRadar()">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">Signal Confidence Filter (%)</span>
+                  <span class="slider-val" id="val-conf">65</span>
+                </div>
+                <input type="range" min="50" max="95" value="65" step="1" oninput="updateSlider('conf',this.value);updateRadar()">
+              </div>
+              <div class="slider-row">
+                <div class="slider-header">
+                  <span class="slider-name">Max Position Size (% equity)</span>
+                  <span class="slider-val" id="val-pos">5</span>
+                </div>
+                <input type="range" min="1" max="20" value="5" step="1" oninput="updateSlider('pos',this.value);updateRadar()">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <i data-lucide="radar" style="width:15px;height:15px;color:var(--purple)"></i>
+            <span class="card-title">Strategy Performance Radar</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="height:300px">
+              <canvas id="chart-radar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── MARKET DATA SIMULATOR ─────────────────────────────────────────────────
+const INSTRUMENTS = {
+  BTCUSD: { price: 67420, vol: 1.4, mu: 0.0001, sigma: 0.018, decimals: 0 },
+  ETHUSD: { price: 3540,  vol: 1.2, mu: 0.0001, sigma: 0.022, decimals: 1 },
+  EURUSD: { price: 1.0852,vol: 0.6, mu: 0.00003, sigma: 0.004, decimals: 4 },
+  XAUUSD: { price: 2318,  vol: 0.8, mu: 0.00005, sigma: 0.008, decimals: 1 },
+  NVDA:   { price: 876,   vol: 1.1, mu: 0.0002, sigma: 0.025, decimals: 2 },
+};
+
+const REGIMES = ['Trending','Mean-Reverting','Volatile','Consolidating'];
+const REGIME_COLORS = { 'Trending':'#06d6a0','Mean-Reverting':'#a78bfa','Volatile':'#ef4444','Consolidating':'#ffb703' };
+const ANOMALY_TYPES = ['Volume Spike','Flash Move','Liquidity Gap','Order Block','Regime Shift'];
+const XAI_LONGS = [
+  'RSI divergence + VWAP reclaim above mean',
+  'Momentum breakout confirmed by ATR expansion',
+  'Order flow imbalance: 3.2x bid dominance',
+  'HMM regime shift to Trending state detected',
+  'VWAP deviation -1.8σ reversal setup',
+  'Volume spike +240% with price retention'
+];
+const XAI_SHORTS = [
+  'RSI overbought (78) + liquidity gap below',
+  'Distribution pattern: 4 consecutive bearish candles',
+  'Ask dominance 2.8x — institutional selling detected',
+  'ATR-based stop breach probability >72%',
+  'Regime shift to Mean-Reverting — fade the move',
+  'VWAP deviation +2.1σ — statistical reversion due'
+];
+
+const state = {
+  activeInstrument: 'BTCUSD',
+  candles: {},
+  signals: [],
+  anomalies: [],
+  auditLog: [],
+  kpi: { pnl: 0, winRate: 0, sharpe: 0, drawdown: 0, positions: 0, signalsToday: 0 },
+  regime: 'Trending',
+  regimeTimer: 0,
+  signalBadge: 0,
+  anomalyBadge: 0,
+  lastHash: '0000000000000000',
+  radarValues: [70, 30, 2.0, 1.5, 65, 5],
+};
+
+function gbmStep(inst) {
+  const d = INSTRUMENTS[inst];
+  const drift = d.mu - 0.5 * d.sigma * d.sigma;
+  const diffusion = d.sigma * (Math.random() * 2 - 1) * Math.sqrt(1/252/78);
+  d.price = d.price * Math.exp(drift + diffusion);
+  if (d.price <= 0) d.price = 0.001;
+  return d.price;
+}
+
+function generateCandle(inst) {
+  const open = INSTRUMENTS[inst].price;
+  const close = gbmStep(inst);
+  const hi = Math.max(open, close) * (1 + Math.random() * 0.003);
+  const lo = Math.min(open, close) * (1 - Math.random() * 0.003);
+  const volume = 1000 + Math.random() * 9000;
+  return { o: open, h: hi, l: lo, c: close, v: volume };
+}
+
+function initCandles() {
+  Object.keys(INSTRUMENTS).forEach(inst => {
+    state.candles[inst] = [];
+    for (let tick = 0; tick < 60; tick++) {
+      state.candles[inst].push(generateCandle(inst));
+    }
+  });
+}
+
+function tickCandles() {
+  Object.keys(INSTRUMENTS).forEach(inst => {
+    state.candles[inst].push(generateCandle(inst));
+    if (state.candles[inst].length > 80) state.candles[inst].shift();
+  });
+}
+
+function maybeGenerateSignal() {
+  if (Math.random() > 0.35) return;
+  const tickers = Object.keys(INSTRUMENTS);
+  const ticker = tickers[Math.floor(Math.random() * tickers.length)];
+  const side = Math.random() > 0.5 ? 'long' : 'short';
+  const xaiPool = side === 'long' ? XAI_LONGS : XAI_SHORTS;
+  const xai = xaiPool[Math.floor(Math.random() * xaiPool.length)];
+  const confidence = 52 + Math.floor(Math.random() * 44);
+  const price = INSTRUMENTS[ticker].price;
+  const signal = {
+    id: Date.now() + Math.random(),
+    time: new Date().toLocaleTimeString('en-GB'),
+    ticker,
+    side,
+    xai,
+    confidence,
+    price: price.toFixed(INSTRUMENTS[ticker].decimals),
+  };
+  state.signals.unshift(signal);
+  if (state.signals.length > 50) state.signals.pop();
+  state.kpi.signalsToday++;
+  state.signalBadge = Math.min(state.signalBadge + 1, 99);
+  addAuditEntry(signal);
+}
+
+function sha256Mock(input) {
+  let h = 0x811c9dc5n;
+  for (let idx = 0; idx < input.length; idx++) {
+    h ^= BigInt(input.charCodeAt(idx));
+    h = (h * 0x01000193n) & 0xFFFFFFFFFFFFFFFFn;
+  }
+  return h.toString(16).padStart(16,'0') + Math.random().toString(16).slice(2,18);
+}
+
+function addAuditEntry(signal) {
+  const payload = `${signal.time}|${signal.ticker}|${signal.side}|${signal.price}|${state.lastHash}`;
+  const txHash = sha256Mock(payload);
+  state.lastHash = txHash;
+  state.auditLog.unshift({
+    time: signal.time,
+    ticker: signal.ticker,
+    side: signal.side,
+    xai: signal.xai,
+    hash: txHash,
+    verified: true,
+  });
+  if (state.auditLog.length > 50) state.auditLog.pop();
+}
+
+function maybeGenerateAnomaly() {
+  if (Math.random() > 0.12) return;
+  const tickers = Object.keys(INSTRUMENTS);
+  const ticker = tickers[Math.floor(Math.random() * tickers.length)];
+  const type = ANOMALY_TYPES[Math.floor(Math.random() * ANOMALY_TYPES.length)];
+  const magnitude = (1.2 + Math.random() * 8.8).toFixed(2);
+  const severity = magnitude > 7 ? 'high' : magnitude > 4 ? 'medium' : 'low';
+  const descriptions = {
+    'Volume Spike': `Volume ${(parseFloat(magnitude)*40).toFixed(0)}% above 20-period average`,
+    'Flash Move':   `Price moved ${magnitude}σ in single tick`,
+    'Liquidity Gap': `Orderbook gap detected: ${(parseFloat(magnitude)*15).toFixed(0)} levels thin`,
+    'Order Block':  `Institutional order block ${magnitude}x normal size`,
+    'Regime Shift': `HMM state transition probability ${(parseFloat(magnitude)*10).toFixed(0)}%`,
+  };
+  state.anomalies.unshift({
+    time: new Date().toLocaleTimeString('en-GB'),
+    ticker,
+    type,
+    description: descriptions[type],
+    magnitude: parseFloat(magnitude),
+    severity,
+  });
+  if (state.anomalies.length > 40) state.anomalies.pop();
+  state.anomalyBadge = Math.min(state.anomalyBadge + 1, 99);
+}
+
+function tickRegime() {
+  state.regimeTimer++;
+  if (state.regimeTimer > 20 + Math.floor(Math.random() * 40)) {
+    state.regime = REGIMES[Math.floor(Math.random() * REGIMES.length)];
+    state.regimeTimer = 0;
+  }
+}
+
+function tickKPI() {
+  const delta = (Math.random() - 0.46) * 320;
+  state.kpi.pnl += delta;
+  state.kpi.winRate = 48 + Math.random() * 24;
+  state.kpi.sharpe = 0.8 + Math.random() * 2.4;
+  state.kpi.drawdown = -(2 + Math.random() * 12);
+  state.kpi.positions = Math.floor(1 + Math.random() * 8);
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────
+const charts = {};
+
+function buildCandleChart() {
+  const ctx = document.getElementById('chart-candle').getContext('2d');
+  const candles = state.candles[state.activeInstrument];
+  const labels = candles.map((_, idx) => idx % 10 === 0 ? idx : '');
+
+  charts.candle = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'OHLC',
+        data: candles.map(c => ({ x: c, o: c.o, h: c.h, l: c.l, c: c.c })),
+        backgroundColor: candles.map(c => c.c >= c.o ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)'),
+        borderColor:     candles.map(c => c.c >= c.o ? '#22c55e' : '#ef4444'),
+        borderWidth: 1,
+        barPercentage: 0.6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: {
+          label: (item) => {
+            const raw = item.raw;
+            if (raw && typeof raw === 'object' && 'o' in raw) {
+              const dec = INSTRUMENTS[state.activeInstrument].decimals;
+              return [`O: ${raw.o.toFixed(dec)}  H: ${raw.h.toFixed(dec)}  L: ${raw.l.toFixed(dec)}  C: ${raw.c.toFixed(dec)}`];
+            }
+            return [];
+          }
+        },
+        backgroundColor: '#162030',
+        borderColor: '#1f3050',
+        borderWidth: 1,
+        titleColor: '#e2eaf4',
+        bodyColor: '#7a95b8',
+      }},
+      scales: {
+        x: { display: false },
+        y: {
+          position: 'right',
+          ticks: { color: '#7a95b8', font: { family: 'monospace', size: 10 } },
+          grid: { color: '#162030' },
+        }
+      }
+    }
+  });
+}
+
+function buildVolumeChart() {
+  const ctx = document.getElementById('chart-volume').getContext('2d');
+  const candles = state.candles[state.activeInstrument];
+  charts.volume = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: candles.map((_, idx) => idx),
+      datasets: [{
+        data: candles.map(c => c.v),
+        backgroundColor: candles.map(c => c.c >= c.o ? 'rgba(34,197,94,.5)' : 'rgba(239,68,68,.5)'),
+        borderWidth: 0,
+        barPercentage: 0.8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+function buildDepthChart() {
+  const ctx = document.getElementById('chart-depth').getContext('2d');
+  const bids = Array.from({ length: 20 }, (_, i) => ({ x: -(i+1), y: 500 + Math.random()*2000 }));
+  const asks = Array.from({ length: 20 }, (_, i) => ({ x: (i+1), y: 500 + Math.random()*2000 }));
+  charts.depth = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [...bids.map(b => b.x), ...asks.map(a => a.x)],
+      datasets: [{
+        data: [...bids.map(b => b.y), ...asks.map(a => a.y)],
+        backgroundColor: [
+          ...bids.map(() => 'rgba(34,197,94,.5)'),
+          ...asks.map(() => 'rgba(239,68,68,.5)'),
+        ],
+        borderWidth: 0,
+        barPercentage: 0.9,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { ticks: { color: '#3d5a80', font: { size: 9 } }, grid: { color: '#162030' } },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+function buildAnomalyChart() {
+  const ctx = document.getElementById('chart-anomaly').getContext('2d');
+  const anomalies = state.anomalies.slice(0, 20);
+  charts.anomaly = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Anomalies',
+        data: anomalies.map((a, idx) => ({ x: idx, y: a.magnitude })),
+        backgroundColor: anomalies.map(a =>
+          a.severity === 'high' ? 'rgba(239,68,68,.8)' :
+          a.severity === 'medium' ? 'rgba(255,183,3,.8)' : 'rgba(6,214,160,.8)'
+        ),
+        pointRadius: anomalies.map(a => 4 + a.magnitude * 0.8),
+        pointHoverRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => {
+              const a = anomalies[item.dataIndex];
+              return a ? [`${a.type} | ${a.ticker} | mag: ${a.magnitude}`] : [];
+            }
+          },
+          backgroundColor: '#162030',
+          borderColor: '#1f3050',
+          borderWidth: 1,
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { color: '#7a95b8', font: { size: 10 } },
+          grid: { color: '#162030' },
+          title: { display: true, text: 'Magnitude (σ)', color: '#3d5a80', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+function buildSignalDistChart() {
+  const ctx = document.getElementById('chart-signal-dist').getContext('2d');
+  const longs  = state.signals.filter(s => s.side === 'long').length;
+  const shorts = state.signals.filter(s => s.side === 'short').length;
+  charts.signalDist = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Long', 'Short'],
+      datasets: [{
+        data: [longs || 1, shorts || 1],
+        backgroundColor: ['rgba(34,197,94,.7)', 'rgba(239,68,68,.7)'],
+        borderColor: ['#22c55e', '#ef4444'],
+        borderWidth: 2,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#7a95b8', font: { size: 11 } } },
+        tooltip: { backgroundColor: '#162030', borderColor: '#1f3050', borderWidth: 1 }
+      }
+    }
+  });
+}
+
+function buildAnomalyTimelineChart() {
+  const ctx = document.getElementById('chart-anomaly-timeline').getContext('2d');
+  const high = state.anomalies.filter(a => a.severity === 'high').length;
+  const med  = state.anomalies.filter(a => a.severity === 'medium').length;
+  const low  = state.anomalies.filter(a => a.severity === 'low').length;
+  charts.anomalyTimeline = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['High', 'Medium', 'Low'],
+      datasets: [{
+        label: 'Count',
+        data: [high, med, low],
+        backgroundColor: ['rgba(239,68,68,.7)', 'rgba(255,183,3,.7)', 'rgba(6,214,160,.5)'],
+        borderColor:     ['#ef4444', '#ffb703', '#06d6a0'],
+        borderWidth: 2,
+        borderRadius: 6,
+        barPercentage: 0.6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7a95b8' }, grid: { display: false } },
+        y: { ticks: { color: '#7a95b8', stepSize: 1 }, grid: { color: '#162030' } }
+      }
+    }
+  });
+}
+
+function buildRadarChart() {
+  const ctx = document.getElementById('chart-radar').getContext('2d');
+  const normalize = (v, min, max) => ((v - min) / (max - min)) * 100;
+  charts.radar = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Win Rate','Sharpe','Low DD','High Conf','Tight Risk','Signal Vol'],
+      datasets: [
+        {
+          label: 'Current',
+          data: [
+            normalize(70, 60, 90),
+            normalize(2.0, 1, 4),
+            normalize(2.0, 1, 4) * 0.8,
+            normalize(65, 50, 95),
+            normalize(5, 1, 20),
+            normalize(1.5, 0.5, 4)
+          ],
+          backgroundColor: 'rgba(6,214,160,.15)',
+          borderColor: '#06d6a0',
+          borderWidth: 2,
+          pointBackgroundColor: '#06d6a0',
+          pointRadius: 4,
+        },
+        {
+          label: 'Benchmark',
+          data: [60, 50, 55, 60, 55, 50],
+          backgroundColor: 'rgba(167,139,250,.1)',
+          borderColor: '#a78bfa',
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointBackgroundColor: '#a78bfa',
+          pointRadius: 3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#7a95b8', font: { size: 11 } } }
+      },
+      scales: {
+        r: {
+          angleLines: { color: '#1f3050' },
+          grid:        { color: '#162030' },
+          pointLabels: { color: '#7a95b8', font: { size: 11 } },
+          ticks:       { display: false },
+          min: 0, max: 100,
+        }
+      }
+    }
+  });
+}
+
+// ── DOM RENDERERS ─────────────────────────────────────────────────────────
+function renderKPI() {
+  const pnl = state.kpi.pnl;
+  const pnlEl = document.getElementById('kpi-pnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  pnlEl.className = 'kpi-value ' + (pnl >= 0 ? 'positive' : 'negative');
+
+  const pnlPct = ((pnl / 100000) * 100).toFixed(2);
+  const pnlDelta = document.getElementById('kpi-pnl-delta');
+  pnlDelta.textContent = (pnl >= 0 ? '▲ ' : '▼ ') + Math.abs(pnlPct) + '%';
+  pnlDelta.className = 'kpi-delta ' + (pnl >= 0 ? 'up' : 'down');
+
+  document.getElementById('kpi-winrate').textContent = state.kpi.winRate.toFixed(1) + '%';
+  document.getElementById('kpi-sharpe').textContent  = state.kpi.sharpe.toFixed(2);
+  document.getElementById('kpi-drawdown').textContent = state.kpi.drawdown.toFixed(2) + '%';
+  document.getElementById('kpi-positions').textContent = state.kpi.positions;
+  document.getElementById('kpi-signals').textContent  = state.kpi.signalsToday;
+
+  const unreal = (Math.random() - 0.5) * 2000;
+  document.getElementById('kpi-pos-pnl').textContent = 'unrealised ' + (unreal >= 0 ? '+' : '') + '$' + unreal.toFixed(0);
+}
+
+function renderSignalList(containerId, limit) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const sigs = state.signals.slice(0, limit);
+  container.innerHTML = sigs.map(s => `
+    <div class="signal-item">
+      <span class="signal-ticker">${s.ticker}</span>
+      <span class="signal-side ${s.side}">${s.side.toUpperCase()}</span>
+      <span class="signal-xai">${s.xai}</span>
+      <span class="signal-conf" style="color:${s.confidence >= 75 ? '#06d6a0' : s.confidence >= 60 ? '#ffb703' : '#7a95b8'}">${s.confidence}%</span>
+    </div>
+  `).join('');
+  document.getElementById('signal-count-label') && (document.getElementById('signal-count-label').textContent = sigs.length + ' active');
+  document.getElementById('signals-full-label') && (document.getElementById('signals-full-label').textContent = state.signals.length + ' total');
+}
+
+function renderAnomalyTable() {
+  const tbody = document.getElementById('anomaly-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = state.anomalies.map(a => `
+    <tr>
+      <td>${a.time}</td>
+      <td>${a.ticker}</td>
+      <td>${a.type}</td>
+      <td style="color:var(--text-secondary);font-family:var(--font-sans);font-size:12px">${a.description}</td>
+      <td>${a.magnitude.toFixed(2)}σ</td>
+      <td><span class="severity-badge severity-${a.severity}">${a.severity.toUpperCase()}</span></td>
+    </tr>
+  `).join('');
+  const label = document.getElementById('anomaly-full-label');
+  if (label) label.textContent = state.anomalies.length + ' events';
+  const countLabel = document.getElementById('anomaly-count-label');
+  if (countLabel) countLabel.textContent = state.anomalies.length + ' detected';
+}
+
+function renderAuditList() {
+  const container = document.getElementById('audit-list');
+  if (!container) return;
+  container.innerHTML = state.auditLog.map(entry => `
+    <div class="audit-item">
+      <span style="color:var(--text-secondary)">${entry.time}</span>
+      <span style="font-weight:700;color:var(--text-primary)">${entry.ticker}</span>
+      <span class="signal-side ${entry.side}" style="font-size:10px;padding:2px 6px">${entry.side.toUpperCase()}</span>
+      <span style="color:var(--text-secondary);font-family:var(--font-sans);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${entry.xai}</span>
+      <span class="audit-hash">${entry.hash.slice(0,20)}…</span>
+      <span class="audit-verified"><i data-lucide="check-circle" style="width:12px;height:12px"></i> Verified</span>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function renderBadges() {
+  const sBadge = document.getElementById('signal-badge');
+  const aBadge = document.getElementById('anomaly-badge');
+  if (sBadge) sBadge.textContent = state.signalBadge > 0 ? state.signalBadge : '';
+  if (aBadge) aBadge.textContent = state.anomalyBadge > 0 ? state.anomalyBadge : '';
+}
+
+function renderRegime() {
+  const el = document.getElementById('regime-value');
+  const dot = document.getElementById('regime-dot');
+  if (el) el.textContent = state.regime;
+  const color = REGIME_COLORS[state.regime] || '#06d6a0';
+  if (dot) { dot.style.background = color; dot.style.boxShadow = `0 0 8px ${color}`; }
+  if (el) el.style.color = color;
+}
+
+function renderDepthStats() {
+  const price = INSTRUMENTS[state.activeInstrument].price;
+  const dec   = INSTRUMENTS[state.activeInstrument].decimals;
+  const spread = price * 0.0003;
+  document.getElementById('bid-vol').textContent  = (3000 + Math.random() * 7000).toFixed(0);
+  document.getElementById('ask-vol').textContent  = (3000 + Math.random() * 7000).toFixed(0);
+  document.getElementById('mid-price').textContent = price.toFixed(dec);
+  document.getElementById('spread-label').textContent = `spread: ${spread.toFixed(dec)}`;
+}
+
+// ── CHART UPDATERS ────────────────────────────────────────────────────────
+function updateCandleChart() {
+  if (!charts.candle || !charts.volume) return;
+  const candles = state.candles[state.activeInstrument];
+  charts.candle.data.datasets[0].data = candles.map(c => c);
+  charts.candle.data.datasets[0].backgroundColor = candles.map(c => c.c >= c.o ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)');
+  charts.candle.data.datasets[0].borderColor      = candles.map(c => c.c >= c.o ? '#22c55e' : '#ef4444');
+  charts.candle.data.labels = candles.map((_, idx) => idx % 10 === 0 ? idx : '');
+  charts.candle.update('none');
+
+  charts.volume.data.datasets[0].data = candles.map(c => c.v);
+  charts.volume.data.datasets[0].backgroundColor = candles.map(c => c.c >= c.o ? 'rgba(34,197,94,.5)' : 'rgba(239,68,68,.5)');
+  charts.volume.data.labels = candles.map((_, idx) => idx);
+  charts.volume.update('none');
+}
+
+function updateDepthChart() {
+  if (!charts.depth) return;
+  const bids = Array.from({ length: 20 }, (_, i) => 500 + Math.random() * 2000);
+  const asks = Array.from({ length: 20 }, (_, i) => 500 + Math.random() * 2000);
+  charts.depth.data.datasets[0].data = [...bids, ...asks];
+  charts.depth.update('none');
+}
+
+function updateAnomalyChart() {
+  if (!charts.anomaly) return;
+  const anomalies = state.anomalies.slice(0, 20);
+  charts.anomaly.data.datasets[0].data = anomalies.map((a, idx) => ({ x: idx, y: a.magnitude }));
+  charts.anomaly.data.datasets[0].backgroundColor = anomalies.map(a =>
+    a.severity === 'high' ? 'rgba(239,68,68,.8)' :
+    a.severity === 'medium' ? 'rgba(255,183,3,.8)' : 'rgba(6,214,160,.8)'
+  );
+  charts.anomaly.data.datasets[0].pointRadius = anomalies.map(a => 4 + a.magnitude * 0.8);
+  charts.anomaly.update('none');
+}
+
+function updateSignalDistChart() {
+  if (!charts.signalDist) return;
+  const longs  = state.signals.filter(s => s.side === 'long').length;
+  const shorts = state.signals.filter(s => s.side === 'short').length;
+  charts.signalDist.data.datasets[0].data = [longs || 1, shorts || 1];
+  charts.signalDist.update();
+}
+
+function updateAnomalyTimelineChart() {
+  if (!charts.anomalyTimeline) return;
+  charts.anomalyTimeline.data.datasets[0].data = [
+    state.anomalies.filter(a => a.severity === 'high').length,
+    state.anomalies.filter(a => a.severity === 'medium').length,
+    state.anomalies.filter(a => a.severity === 'low').length,
+  ];
+  charts.anomalyTimeline.update();
+}
+
+// ── STRATEGY LAB ──────────────────────────────────────────────────────────
+function updateSlider(key, value) {
+  const el = document.getElementById('val-' + key);
+  if (el) el.textContent = value;
+}
+
+function updateRadar() {
+  if (!charts.radar) return;
+  const rsiOb = parseFloat(document.querySelector('input[oninput*="rsi-ob"]').value);
+  const rsiOs = parseFloat(document.querySelector('input[oninput*="rsi-os"]').value);
+  const atr   = parseFloat(document.querySelector('input[oninput*="atr"]').value);
+  const vwap  = parseFloat(document.querySelector('input[oninput*="vwap"]').value);
+  const conf  = parseFloat(document.querySelector('input[oninput*="conf"]').value);
+  const pos   = parseFloat(document.querySelector('input[oninput*="pos"]').value);
+
+  const n = (v, min, max) => ((v - min) / (max - min)) * 100;
+  charts.radar.data.datasets[0].data = [
+    n(rsiOb, 60, 90),
+    n(atr, 1, 4),
+    n(4 - atr, 0, 3) * 33,
+    n(conf, 50, 95),
+    n(20 - pos, 0, 19) * 100 / 100,
+    n(vwap, 0.5, 4)
+  ];
+  charts.radar.update();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function switchView(viewName, navEl) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const viewEl = document.getElementById('view-' + viewName);
+  if (viewEl) viewEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  const titles = { overview: 'Overview', signals: 'AI Signals', anomalies: 'Anomaly Detection', audit: 'Audit Trail', strategy: 'Strategy Lab' };
+  const titleEl = document.getElementById('header-title');
+  if (titleEl) titleEl.textContent = titles[viewName] || viewName;
+
+  if (viewName === 'signals')  { state.signalBadge  = 0; renderBadges(); }
+  if (viewName === 'anomalies'){ state.anomalyBadge = 0; renderBadges(); }
+}
+
+function selectInstrument(inst, btnEl) {
+  state.activeInstrument = inst;
+  document.querySelectorAll('.inst-tab').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  updateCandleChart();
+  renderDepthStats();
+}
+
+function forceRefresh() {
+  tickCandles();
+  maybeGenerateSignal();
+  maybeGenerateAnomaly();
+  tickKPI();
+  tickRegime();
+  renderAll();
+}
+
+// ── CLOCK ──────────────────────────────────────────────────────────────────
+function tickClock() {
+  const clockEl = document.getElementById('clock');
+  if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+
+// ── MASTER RENDER ─────────────────────────────────────────────────────────
+function renderAll() {
+  renderKPI();
+  renderSignalList('overview-signal-list', 8);
+  renderSignalList('full-signal-list', 30);
+  renderAnomalyTable();
+  renderAuditList();
+  renderRegime();
+  renderDepthStats();
+  renderBadges();
+  updateCandleChart();
+  updateDepthChart();
+  updateAnomalyChart();
+  updateSignalDistChart();
+  updateAnomalyTimelineChart();
+}
+
+// ── BOOTSTRAP ─────────────────────────────────────────────────────────────
+function init() {
+  lucide.createIcons();
+  initCandles();
+
+  // Seed initial data
+  for (let seed = 0; seed < 12; seed++) { maybeGenerateSignal(); }
+  for (let seed = 0; seed < 8;  seed++) { maybeGenerateAnomaly(); }
+  for (let seed = 0; seed < 6;  seed++) { tickKPI(); }
+
+  buildCandleChart();
+  buildVolumeChart();
+  buildDepthChart();
+  buildAnomalyChart();
+  buildSignalDistChart();
+  buildAnomalyTimelineChart();
+  buildRadarChart();
+
+  renderAll();
+
+  // Real-time tick: every 1200ms
+  setInterval(() => {
+    tickCandles();
+    maybeGenerateSignal();
+    maybeGenerateAnomaly();
+    tickKPI();
+    tickRegime();
+    renderAll();
+  }, 1200);
+
+  // Clock: every second
+  setInterval(tickClock, 1000);
+  tickClock();
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
